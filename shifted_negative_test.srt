@@ -1,0 +1,15 @@
+1
+00:00:00,000 --> 00:00:01,000
+Hello, this is the first subtitle.
+
+2
+00:00:03,500 --> 00:00:06,200
+This is the second subtitle line.
+
+3
+00:00:08,000 --> 00:00:10,500
+And this is the third subtitle.
+
+4
+00:00:13,300 --> 00:00:16,000
+Final subtitle for testing purposes.

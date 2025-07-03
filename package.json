@@ -1,0 +1,28 @@
+{
+  "name": "subtitle-shift-api",
+  "version": "1.0.0",
+  "description": "Node.js API for shifting subtitle timestamps in .srt files",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "keywords": [
+    "subtitles",
+    "srt",
+    "timestamp",
+    "shift",
+    "api",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "iconv-lite": "^0.6.3"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
