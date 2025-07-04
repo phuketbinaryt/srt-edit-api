@@ -87,9 +87,9 @@ function decodeText(buffer) {
     score += (text.match(/\uFFFD/g) || []).length * 1000;
     
     // Count suspicious character sequences that indicate wrong encoding
-    score += (text.match(/Ã[€-ÿ]/g) || []).length * 100; // Common UTF-8 misinterpretation
-    score += (text.match(/â€/g) || []).length * 100;      // Quote marks misencoded
-    score += (text.match(/Â/g) || []).length * 50;        // Non-breaking space issues
+    score += (text.match(/Ã[¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ]/g) || []).length * 100; // Common UTF-8 misinterpretation
+    score += (text.match(/â€/g) || []).length * 100;       // Quote marks misencoded
+    score += (text.match(/Â/g) || []).length * 50;         // Non-breaking space issues
     
     // Prefer text with common subtitle patterns
     if (text.match(/\d{2}:\d{2}:\d{2},\d{3}/)) score -= 10; // SRT timestamp format
