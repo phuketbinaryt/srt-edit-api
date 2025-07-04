@@ -1,0 +1,15 @@
+1
+00:00:04,000 --> 00:00:06,000
+Ciao! Questo Ã¨ un test con caratteri speciali.
+
+2
+00:00:08,500 --> 00:00:11,200
+CittÃ , perchÃ©, piÃ¹, cosÃ¬, giÃ , perÃ².
+
+3
+00:00:13,000 --> 00:00:15,500
+CaffÃ¨, universitÃ , qualitÃ , libertÃ .
+
+4
+00:00:18,300 --> 00:00:21,000
+Ãˆ un piacere incontrarti! Ã€ncora tÃ¨st.

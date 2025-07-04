@@ -68,18 +68,82 @@ function shiftTimestamp(timestamp, shiftSeconds) {
   return `${msToTimestamp(newStartTime)} --> ${msToTimestamp(newEndTime)}`;
 }
 
-// Function to detect and decode text encoding
+// Function to detect and decode text encoding with better heuristics
 function decodeText(buffer) {
-  // Try UTF-8 first
-  let decoded = iconv.decode(buffer, 'utf-8');
+  // Unicode replacement character that indicates encoding issues
+  const REPLACEMENT_CHAR = '\uFFFD';
   
-  // Check for replacement characters () which indicate encoding issues
-  if (decoded.includes('')) {
-    // Fallback to windows-1252
-    decoded = iconv.decode(buffer, 'windows-1252');
+  // Check for BOM (Byte Order Mark) first
+  if (buffer.length >= 3 && buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) {
+    console.log('UTF-8 BOM detected');
+    return { content: iconv.decode(buffer, 'utf-8'), encoding: 'utf-8' };
   }
   
-  return decoded;
+  // Function to score text quality (lower is better)
+  function scoreText(text) {
+    let score = 0;
+    
+    // Count replacement characters (very bad)
+    score += (text.match(/\uFFFD/g) || []).length * 1000;
+    
+    // Count suspicious character sequences that indicate wrong encoding
+    score += (text.match(/Ã[€-ÿ]/g) || []).length * 100; // Common UTF-8 misinterpretation
+    score += (text.match(/â€/g) || []).length * 100;      // Quote marks misencoded
+    score += (text.match(/Â/g) || []).length * 50;        // Non-breaking space issues
+    
+    // Prefer text with common subtitle patterns
+    if (text.match(/\d{2}:\d{2}:\d{2},\d{3}/)) score -= 10; // SRT timestamp format
+    if (text.match(/-->/)) score -= 5;                       // SRT arrow
+    
+    return score;
+  }
+  
+  // List of encodings to try with their priorities
+  const encodings = [
+    'utf-8',           // Most common modern encoding
+    'iso-8859-1',      // Latin-1 (common for Western European languages)
+    'windows-1252',    // Windows Latin-1 (superset of ISO-8859-1)
+    'iso-8859-15',     // Latin-9 (includes Euro symbol)
+    'cp1252',          // Alternative name for Windows-1252
+    'ascii'            // Basic ASCII
+  ];
+  
+  let bestResult = null;
+  let bestScore = Infinity;
+  
+  for (const encoding of encodings) {
+    try {
+      const decoded = iconv.decode(buffer, encoding);
+      const score = scoreText(decoded);
+      
+      console.log(`Encoding ${encoding}: score=${score}, sample="${decoded.substring(0, 50).replace(/\n/g, '\\n')}"`);
+      
+      if (score < bestScore) {
+        bestScore = score;
+        bestResult = { content: decoded, encoding: encoding };
+      }
+      
+      // If we get a perfect score (no issues), use this encoding
+      if (score === 0) {
+        console.log(`Perfect encoding match found: ${encoding}`);
+        break;
+      }
+      
+    } catch (error) {
+      console.log(`Failed to decode with ${encoding}:`, error.message);
+      continue;
+    }
+  }
+  
+  if (bestResult) {
+    console.log(`Best encoding: ${bestResult.encoding} (score: ${bestScore})`);
+    return bestResult;
+  }
+  
+  // Ultimate fallback
+  console.warn('All encoding attempts failed, using UTF-8 as fallback');
+  const fallbackDecoded = iconv.decode(buffer, 'utf-8');
+  return { content: fallbackDecoded, encoding: 'utf-8' };
 }
 
 // Function to rebuild SRT content
@@ -159,8 +223,8 @@ app.post('/shift-subtitles', upload.single('file'), (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
     
-    // Decode the file content
-    const content = decodeText(req.file.buffer);
+    // Decode the file content with proper encoding detection
+    const { content, encoding: detectedEncoding } = decodeText(req.file.buffer);
     
     // Parse SRT content
     const blocks = parseSRT(content);
@@ -178,13 +242,27 @@ app.post('/shift-subtitles', upload.single('file'), (req, res) => {
     // Rebuild SRT content
     const modifiedContent = rebuildSRT(shiftedBlocks);
     
-    // Encode back to UTF-8
-    const outputBuffer = iconv.encode(modifiedContent, 'utf-8');
+    // Encode back using the same encoding as the input (or UTF-8 if detection failed)
+    // This preserves the original character encoding
+    let outputEncoding = detectedEncoding;
     
-    // Set response headers for file download
-    res.setHeader('Content-Type', 'application/x-subrip');
+    // For better compatibility, always use UTF-8 for output unless specifically requested
+    // UTF-8 can represent all characters and is widely supported
+    if (detectedEncoding !== 'utf-8' && detectedEncoding !== 'utf-8-bom') {
+      console.log(`Converting from ${detectedEncoding} to UTF-8 for better compatibility`);
+      outputEncoding = 'utf-8';
+    }
+    
+    const outputBuffer = iconv.encode(modifiedContent, outputEncoding);
+    
+    // Set response headers for file download with proper charset
+    const charset = outputEncoding.includes('utf-8') ? 'utf-8' : 'iso-8859-1';
+    res.setHeader('Content-Type', `application/x-subrip; charset=${charset}`);
     res.setHeader('Content-Disposition', `attachment; filename="${req.file.originalname}"`);
     res.setHeader('Content-Length', outputBuffer.length);
+    
+    // Log encoding information for debugging
+    console.log(`Input encoding: ${detectedEncoding}, Output encoding: ${outputEncoding}, Charset: ${charset}`);
     
     // Send the modified file
     res.send(outputBuffer);
